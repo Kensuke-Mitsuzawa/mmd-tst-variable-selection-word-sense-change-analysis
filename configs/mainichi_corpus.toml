@@ -1,0 +1,8 @@
+[PreprocessingSourceConfig]
+    path_embedding_file = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/source/mainichi/wv.npy"
+    path_token_entry_file = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/source/mainichi/freq100.pkl"
+    
+    option_use_pos = "名詞"
+
+[PreprocessingOutputConfig]
+    path_resource_output = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/processed/mainichi"

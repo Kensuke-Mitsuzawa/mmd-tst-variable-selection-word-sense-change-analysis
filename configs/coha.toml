@@ -1,0 +1,11 @@
+[PreprocessingSourceConfig]
+    path_embedding_file = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/source/coha/wv.npy"
+    path_token_entry_file = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/source/coha/freq100.pkl"
+    
+    option_use_pos = ""  # I do not use this option for coha.
+
+[PreprocessingOutputConfig]
+    path_resource_output = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/processed/coha"
+
+    n_token_train = 400
+    n_token_test = 105

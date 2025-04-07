@@ -1,44 +1,71 @@
 """The given file (npy) is concatenated all together over multiple years.
 This file is not clear for handling. Hence, I split the file into multiples."""
 
+import typing as ty
 from pathlib import Path
 import numpy as np
 import pickle
 import random
 import json
 
+import dataclasses
+
 import logzero
 logger = logzero.logger
 
-# --------- 入力ファイルパス ---------
-PATH_GIVEN_FILE = '/home/mitsuzaw/codes/dev/mmd-tst-variable-detector/demos/demo_word_embedding/resources/original/wv.npy'
-PATH_TOKEN_ENTRY = '/home/mitsuzaw/codes/dev/mmd-tst-variable-detector/demos/demo_word_embedding/resources/original/freq100.pkl'
-# --------- 設定パラメータ ---------
-POS_USE = '名詞'  # 設定対象の品詞。文字列部分検索で、この文字を含む語のみを抽出する。
-PATH_DIR_OUTPUT_TRAIN = '/home/mitsuzaw/codes/dev/mmd-tst-variable-detector/demos/demo_word_embedding/resources/preprocessed-ver3/train'
-PATH_DIR_OUTPUT_TEST = '/home/mitsuzaw/codes/dev/mmd-tst-variable-detector/demos/demo_word_embedding/resources/preprocessed-ver3/test'
-N_TOKENS_TRAIN = 2000  # n-tokens to be used for the comparison tasks.
-N_TOKENS_TEST = 300  # n-tokens to be used for the comparison tasks.
-
-if N_TOKENS_TRAIN != -1:
-    n_token_used = N_TOKENS_TRAIN + N_TOKENS_TEST
-else:
-    raise Exception()
-    n_token_used = -1
-# end if
-
-# set random seed
-random.seed(0)
 
 
-def main():
-    path_given_npy = Path(PATH_GIVEN_FILE)
-    path_token_entry = Path(PATH_TOKEN_ENTRY)
-    path_dir_out_train = Path(PATH_DIR_OUTPUT_TRAIN)
-    path_dir_out_test = Path(PATH_DIR_OUTPUT_TEST)
+@dataclasses.dataclass
+class PreprocessingSourceConfig:
+    path_embedding_file: str
+    path_token_entry_file: str
+
+    option_use_pos: ty.Optional[str] = None
+
+    def __post_init__(self):
+        if self.option_use_pos is None:
+            self.option_use_pos = ''
+        # end if
+
+
+@dataclasses.dataclass
+class PreprocessingOutputConfig:
+    path_resource_output: str
+
+    dir_name_train: str = 'train'
+    dir_name_test: str = 'test'
+
+    n_token_train: int = 2000
+    n_token_test: int = 300
+
+
+
+def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingOutputConfig):
+    if output_config.n_token_train != -1:
+        n_token_used = output_config.n_token_train + output_config.n_token_test
+    else:
+        raise Exception()
+        n_token_used = -1
+    # end if
+
+    # set random seed
+    random.seed(0)
+
+    path_given_npy = Path(source_config.path_embedding_file)
+    path_token_entry = Path(source_config.path_token_entry_file)
 
     assert path_given_npy.exists(), f"Given file not found: {path_given_npy}"
     assert path_token_entry.exists(), f"Token entry file not found: {path_token_entry}"
+
+
+    path_dir_output = Path(output_config.path_resource_output)
+    path_dir_output.mkdir(parents=True, exist_ok=True)
+
+    path_dir_out_train = path_dir_output / output_config.dir_name_train
+    path_dir_out_test = path_dir_output / output_config.dir_name_test
+    path_dir_out_train.mkdir(parents=True, exist_ok=True)
+    path_dir_out_test.mkdir(parents=True, exist_ok=True)
+
     
     path_dir_out_train.mkdir(parents=True, exist_ok=True)
     path_dir_out_test.mkdir(parents=True, exist_ok=True)
@@ -47,12 +74,12 @@ def main():
     logger.info(f'Count token of embeddings: {len(token_entry)}')
     
     # set tokens to use.
-    if POS_USE != '':
+    if source_config.option_use_pos != '':
         token_entry_updated = {}
         token_original_new_relation = {}
         new_t_id = 0
         for original_t_id, token in token_entry.items():
-            if POS_USE in token:
+            if source_config.option_use_pos in token:
                 token_entry_updated[new_t_id] = token
                 token_original_new_relation[original_t_id] = new_t_id
                 new_t_id += 1
@@ -79,8 +106,8 @@ def main():
         token_original_new_relation_n_limit_train = {}
         token_original_new_relation_n_limit_test = {}
         
-        token_ids_use_train = token_ids_use[:N_TOKENS_TRAIN]
-        token_ids_use_test = token_ids_use[N_TOKENS_TRAIN:]
+        token_ids_use_train = token_ids_use[:output_config.n_token_train]
+        token_ids_use_test = token_ids_use[output_config.n_token_test:]
         
         # for the training data
         new_t_id = 0
@@ -145,8 +172,8 @@ def main():
         logger.info(f'The embeddings in range i={_name_current_time_epoch}: {_embeddings_in_range.shape}')
         
         # splitting into the training and test data
-        _embeddings_in_range_train = _embeddings_in_range[:N_TOKENS_TRAIN]
-        _embeddings_in_range_test = _embeddings_in_range[N_TOKENS_TRAIN:]
+        _embeddings_in_range_train = _embeddings_in_range[:output_config.n_token_train]
+        _embeddings_in_range_test = _embeddings_in_range[output_config.n_token_test:]
         
         # saving the train
         _path_out_embedding_time_train = path_dir_out_train / f'embedding_time_{_name_current_time_epoch}.npy'
@@ -188,6 +215,31 @@ def main():
 
     
 if __name__ == '__main__':
-    main()
-    
-    
+    import argparse
+    import dacite
+    import toml
+
+    _parser = argparse.ArgumentParser(description='Preprocessing of word embeddings.')
+    _parser.add_argument('-c', '--config', type=str, required=True)
+
+    _args = _parser.parse_args()
+    _path_config = Path(_args.config)
+    assert _path_config.exists(), f'Config file not found: {_path_config}'
+    _config = toml.load(_path_config)
+
+    assert 'PreprocessingSourceConfig' in _config, f'Config file is not valid: {_path_config}'
+    assert 'PreprocessingOutputConfig' in _config, f'Config file is not valid: {_path_config}'
+
+    source_config = dacite.from_dict(
+        data_class=PreprocessingSourceConfig,
+        data=_config['PreprocessingSourceConfig'],
+    )
+    output_config = dacite.from_dict(
+        data_class=PreprocessingOutputConfig,
+        data=_config['PreprocessingOutputConfig'],
+    )
+
+    main(
+        source_config=source_config,
+        output_config=output_config,
+    ) 
