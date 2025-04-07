@@ -14,3 +14,4 @@ wandb/
 # pycharm
 .idea/
 mlruns/
+resources
