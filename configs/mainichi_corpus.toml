@@ -5,4 +5,45 @@
     option_use_pos = "名詞"
 
 [PreprocessingOutputConfig]
-    path_resource_output = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/processed/mainichi"
+    path_resource_output = "/workdir/kmitsuzawa/DATA/mitsuzaw/eurecom/project_word_sense/processed/mainichi"
+
+
+[ExecutionConfig]
+    [base]
+        file_name_sqlite3 = "exp_result.sqlite3"
+        name_experiment_db = "experiment.json"
+
+        # describing the bath-path of directory where you wanna save. 
+        path_experiment_root = "/workdir/kmitsuzawa/DATA/mitsuzaw/eurecom/project_word_sense/mainichi"
+        dir_name_data = "data"
+        dir_models = "models"
+        dir_logs = "logs"
+
+    [device]
+        train_accelerator = 'cuda'
+        # 'single' or 'dask'. Use 'single' when you encounter issues.
+        distributed_mode = 'single'
+
+        # configs for cores. You need either CPU cores or GPUs in the number of `dask_n_workers` * `dask_threads_per_worker`.
+        # for example, when both 4, then 16 cores are required.
+        # the number of workers. 
+        dask_n_workers = 0
+        # the number of threads per worker.
+        dask_threads_per_worker = 0
+
+    [mmd_baseline]
+        devices = 'auto'
+        MAX_EPOCH = 9999
+
+
+    [mmd_algorithm_one]
+        max_epoch = 9999
+        aggregation_kernel_length_scale = 'mean'
+
+
+    [cv_selection]
+        MAX_EPOCH = 9999
+        candidate_regularization_parameter = 'auto'
+        n_regularization_parameter = 5
+
+        n_subsampling = 10
