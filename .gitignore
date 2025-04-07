@@ -1,0 +1,16 @@
+.pytest_cache/
+*ckpt
+
+pivottablejs.html
+
+__pycache__/
+.ipynb_checkpoints/
+logs/
+lightning_logs/
+wandb/
+
+# vscode
+.vscode/
+# pycharm
+.idea/
+mlruns/
