@@ -107,8 +107,11 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
         token_original_new_relation_n_limit_test = {}
         
         token_ids_use_train = token_ids_use[:output_config.n_token_train]
-        token_ids_use_test = token_ids_use[output_config.n_token_test:]
+        token_ids_use_test = token_ids_use[output_config.n_token_train:(output_config.n_token_train + output_config.n_token_test)]
         
+        assert len(token_ids_use_train) > 0, f'No token for the training data: {token_ids_use_train}'
+        assert len(token_ids_use_test) > 0, f'No token for the test data: {token_ids_use_test}'
+
         # for the training data
         new_t_id = 0
         for original_t_id, token in token_source.items():
@@ -169,12 +172,15 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
             except IndexError:
                 breakpoint()
         # end if
-        logger.info(f'The embeddings in range i={_name_current_time_epoch}: {_embeddings_in_range.shape}')
+        logger.info(f'The total embedding size in range i={_name_current_time_epoch}: {_embeddings_in_range.shape}')
         
         # splitting into the training and test data
         _embeddings_in_range_train = _embeddings_in_range[:output_config.n_token_train]
-        _embeddings_in_range_test = _embeddings_in_range[output_config.n_token_test:]
-        
+        _embeddings_in_range_test = _embeddings_in_range[output_config.n_token_train:(output_config.n_token_train + output_config.n_token_test)]
+
+        logger.info(f'Embedding Array for train: {_embeddings_in_range_train.shape}')
+        logger.info(f'Embedding Array for test: {_embeddings_in_range_test.shape}')
+
         # saving the train
         _path_out_embedding_time_train = path_dir_out_train / f'embedding_time_{_name_current_time_epoch}.npy'
         np.save(_path_out_embedding_time_train, _embeddings_in_range_train)

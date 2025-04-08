@@ -31,6 +31,9 @@
         # the number of threads per worker.
         dask_threads_per_worker = 0
 
+    [approach]
+        option_approach = ['wasserstein_independence', 'algorithm_one']
+
     [mmd_baseline]
         devices = 'auto'
         MAX_EPOCH = 9999

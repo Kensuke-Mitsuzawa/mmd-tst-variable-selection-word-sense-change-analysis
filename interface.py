@@ -85,6 +85,18 @@ class DeviceConfig:
     
 
 
+@dataclass
+class ApproachConfig:
+    option_approach: ty.List[str]
+
+    def post_init(self):
+        for __name_approach in self.option_approach:
+            assert __name_approach in (
+                'wasserstein_independence',
+                'algorithm_one',
+                'cv_selection')
+
+
 
 @dataclass
 class ExecutionConfig:
@@ -93,6 +105,7 @@ class ExecutionConfig:
     mmd_algorithm_one: AlgorithmOneConfigArgs
     cv_selection: CvSelectionConfig
     device: DeviceConfig
+    approach: ApproachConfig
     data_setting_train: ty.Optional[DataSettingConfig] = None
     data_setting_test: ty.Optional[DataSettingConfig] = None
 
@@ -191,12 +204,16 @@ def main_single_run(path_toml_config: Path):
     path_detection_output = path_root_dir / 'detection_output'
     path_detection_output.mkdir(parents=True, exist_ok=True)
     
-    detection_approaches = [
-        ('wasserstein_independence', ''), 
-        ('interpretable_mmd', 'algorithm_one'),
-        ('interpretable_mmd', 'cv_selection')
-    ]
-    for __t_detection_approach in detection_approaches:
+    dict_detection_approaches = {
+        'wasserstein_independence': ('wasserstein_independence', ''), 
+        'algorithm_one': ('interpretable_mmd', 'algorithm_one'),
+        'cv_selection': ('interpretable_mmd', 'cv_selection')
+    }
+    seq_detection_approaches = config_obj.approach.option_approach
+
+    for __code_name_detection_approach in seq_detection_approaches:
+        __t_detection_approach = dict_detection_approaches[__code_name_detection_approach]
+
         dask_config_detection = DistributedConfigArgs(
             distributed_mode=config_obj.device.distributed_mode,
             dask_n_workers=config_obj.device.dask_n_workers,
