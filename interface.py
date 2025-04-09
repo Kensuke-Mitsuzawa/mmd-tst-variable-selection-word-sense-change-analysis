@@ -110,7 +110,7 @@ class ExecutionConfig:
     data_setting_test: ty.Optional[DataSettingConfig] = None
 
 
-def main_single_run(path_toml_config: Path):
+def main_single_run(path_toml_config: Path, is_redo: bool = False):
     """The main function to execute a pairwise comparison between two word embeddings.
     """
     assert path_toml_config.exists(), f'Not found: {path_toml_config}'
@@ -214,6 +214,14 @@ def main_single_run(path_toml_config: Path):
     for __code_name_detection_approach in seq_detection_approaches:
         __t_detection_approach = dict_detection_approaches[__code_name_detection_approach]
 
+        __approach_name_concat = '-'.join(__t_detection_approach)
+        _path_output_file = path_detection_output / f'{__approach_name_concat}.json'
+
+        if is_redo is False and _path_output_file.exists():
+            logger.info(f'Skipping the same process since the output file already exists: {_path_output_file}')
+            continue
+        # end if
+
         dask_config_detection = DistributedConfigArgs(
             distributed_mode=config_obj.device.distributed_mode,
             dask_n_workers=config_obj.device.dask_n_workers,
@@ -268,9 +276,7 @@ def main_single_run(path_toml_config: Path):
         assert isinstance(result_obj.detection_result_sample_based, BasicVariableSelectionResult)
         
         detection_obj_json: str = result_obj.as_json()
-        
-        __approach_name_concat = '-'.join(__t_detection_approach)
-        with open(path_detection_output / f'{__approach_name_concat}.json', 'w') as f:
+        with open(_path_output_file, 'w') as f:
             f.write(detection_obj_json)
         # end with
 
@@ -278,7 +284,8 @@ def main_single_run(path_toml_config: Path):
 def execute_all_pairwise_combination(execution_config: ExecutionConfig,
                                      preprocessing_config: PreprocessingOutputConfig,
                                      path_python_interpreter: ty.Optional[Path] = None,
-                                     path_this_script: ty.Optional[Path] = None
+                                     path_this_script: ty.Optional[Path] = None,
+                                     is_redo: bool = False,
                                      ):
     """Executing the variable detection for all pairwise combinations of the given word embeddings.
     
@@ -309,7 +316,8 @@ def execute_all_pairwise_combination(execution_config: ExecutionConfig,
     
     
     file_pairs = {(x, y) for x, y in itertools.combinations(seq_files_source_npy, 2) if x != y}  # list of file path pairs.
-    
+    file_pairs = list(sorted(file_pairs, key=lambda x: x[0].stem))
+
     for __t_file_pair in tqdm.tqdm(file_pairs):
         logger.info(f'Comparing {__t_file_pair[0].name} and {__t_file_pair[1].name}')
         # copy the toml file and create a new toml config file for this combination.
@@ -323,7 +331,7 @@ def execute_all_pairwise_combination(execution_config: ExecutionConfig,
         __config_obj.base.path_experiment_root = __path_pair_root.as_posix()
         
         # skip the same process if the directory already exists.
-        if __path_pair_root.exists() or __path_pair_root_alt.exists():
+        if (__path_pair_root.exists() or __path_pair_root_alt.exists()) and is_redo is False:
             logger.info(f'Skipping the same process since the directory already exists: {__path_pair_root}')
             continue
         # end if
@@ -395,6 +403,7 @@ if __name__ == "__main__":
                      help='Path to the config file. TOML format. \
                          When mode is "single_run", you put the a toml file ready-to-use. \
                              When the mode is "all", you put the toml file that you"ve described the base path.')
+    opt.add_argument('--is_redo', action='store_true', default=False,)
     __args = opt.parse_args()
 
 
@@ -415,7 +424,8 @@ if __name__ == "__main__":
 
         execute_all_pairwise_combination(
             __execution_config,
-            __preprocessing_config)
+            __preprocessing_config,
+            is_redo=__args.is_redo)
     else:
         raise ValueError(f'Unknown mode: {__args.mode}')
     # end if
