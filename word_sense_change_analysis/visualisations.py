@@ -288,11 +288,13 @@ def __visualise_variable_count(seq_stack_detection_results: ty.List[OnePairDetec
     df_p_vals = pd.DataFrame(seq_obj_p_value_matrix)
     
     f, ax = plt.subplots(figsize=(9, 6))
-    sns.heatmap(df_p_vals.pivot(index='x', columns='y', values='n_variables'), annot=True, linewidths=.5, ax=ax)
+    df_pivot = df_p_vals.pivot(index='x', columns='y', values='n_variables')
+
+    sns.heatmap(df_pivot, annot=True, linewidths=.5, ax=ax, annot_kws={"fontsize": 12})
 
     if is_render_binary_ho_rejection:
         _path_save = path_figure_dir / 'heatmap_variable_count_p_val_filtering.png'
-        ax.set_title(f'Variable-count heatmap (Zero count if p-value > 0.05)')
+        ax.set_title(f'Variable-count heatmap (Zero count if p-value < 0.05)')
     else:
         _path_save = path_figure_dir / 'heatmap_variable_count.png'
         ax.set_title(f'Variable-count heatmap')
