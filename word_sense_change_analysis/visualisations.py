@@ -71,17 +71,21 @@ matplotlib.rcParams['text.usetex'] = False
 # -------------------------------------------------
 
 
-TimeEpochLabelStart = 2003
-TimeEpochLabelEnd = 2020
+# TimeEpochLabelStart = 2003
+# TimeEpochLabelEnd = 2020
 
 class TimeEpochConfiguration(object):
-    def __init__(self) -> None:
-        self.year_start = TimeEpochLabelStart
-        self.year_end = TimeEpochLabelEnd
+    def __init__(self,
+                 year_start: int,
+                 year_end: int,
+                 year_range: int) -> None:
+        self.year_start: int = year_start
+        self.year_end: int = year_end
+        self.year_range: int = year_range
     
     def get_year_label(self, time_epoch_index: int) -> int:
         """Getting the year label."""
-        return self.year_start + (time_epoch_index - 1)
+        return self.year_start + (time_epoch_index - 1) * self.year_range
     
 
 # -------------------------------------------------
@@ -190,8 +194,15 @@ def __extract_detection_one_pair(path_result_dir: Path,
     
 def __visualise_pval_heatmap(seq_stack_detection_results: ty.List[OnePairDetectionResult], 
                              path_figure_dir: Path,
+                             year_start: int,
+                             year_end: int,
+                             year_range: int,
                              is_render_binary_ho_rejection: bool = False):
-    year_convertor = TimeEpochConfiguration()
+    year_convertor = TimeEpochConfiguration(
+        year_start=year_start,
+        year_end=year_end,
+        year_range=year_range
+    )
     
     seq_obj_p_value_matrix = [
         {
@@ -232,8 +243,15 @@ def __visualise_pval_heatmap(seq_stack_detection_results: ty.List[OnePairDetecti
     
 def __visualise_variable_count(seq_stack_detection_results: ty.List[OnePairDetectionResult], 
                                path_figure_dir: Path,
+                               year_start: int,
+                               year_end: int,
+                               year_range: int,
                                is_render_binary_ho_rejection: bool = False):
-    year_convertor = TimeEpochConfiguration()
+    year_convertor = TimeEpochConfiguration(
+        year_start=year_start,
+        year_end=year_end,
+        year_range=year_range
+    )
 
     seq_obj_p_value_matrix = [
         {
@@ -495,7 +513,10 @@ def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetecti
 
 
 def __write_out_voacb_specific_time_epochs(computed_vocabulary_score: ComputedVocabularyScore, 
-                                           path_output_excel: Path):
+                                           path_output_excel: Path,
+                                           year_start: int,
+                                           year_end: int,
+                                           year_range: int):
     """Writing out the computed vocabulary and its score for each time epoch.
     
     The excel book has 2 sheets.
@@ -509,7 +530,11 @@ def __write_out_voacb_specific_time_epochs(computed_vocabulary_score: ComputedVo
     # sheet-2: vocabulary per time-epoch
     stack_dataframe = {}
     for __time_epoch_container in computed_vocabulary_score.time_epoch2tokens_specific:
-        __label_year = TimeEpochConfiguration().get_year_label(__time_epoch_container.time_epoch)
+        __label_year = TimeEpochConfiguration(
+            year_start=year_start,
+            year_end=year_end,
+            year_range=year_range
+        ).get_year_label(__time_epoch_container.time_epoch)
         __seq_labels = [f'{__t[0]} {__t[1]}' for __t in sorted(__time_epoch_container.vocabularies, key=lambda x: x[1], reverse=True)]
         stack_dataframe[__label_year] = __seq_labels
     # end for
@@ -526,7 +551,10 @@ def __write_out_voacb_specific_time_epochs(computed_vocabulary_score: ComputedVo
 
 def __visualise_target_vocabulary_over_time(computed_vocabulary_score: ComputedVocabularyScore, 
                                             path_figure_dir: Path, 
-                                            target_words: ty.List[str]):
+                                            target_words: ty.List[str],
+                                            year_start: int,
+                                            year_end: int,
+                                            year_range: int):
     """plotting the top-n vocabularies over the time."""
     path_figure_dir.mkdir(parents=True, exist_ok=True)
 
@@ -553,7 +581,11 @@ def __visualise_target_vocabulary_over_time(computed_vocabulary_score: ComputedV
 
     # -------------------------------------------------
 
-    year_convertor = TimeEpochConfiguration()
+    year_convertor = TimeEpochConfiguration(
+        year_start=year_start,
+        year_end=year_end,
+        year_range=year_range
+    )
 
     for __vocab, __g_obj in itertools.groupby(sorted(seq_extracted_target_vocab, key=lambda x: x.vocab), key=lambda x: x.vocab):
         __seq_score_container = sorted(list(__g_obj), key=lambda t: t.year)
@@ -614,7 +646,11 @@ def compute_dtw_score_based_on_vocabulary_time_score(
     logger.info('Computing DTW score for each keyword...')
     for __keyword in tqdm.tqdm(target_keywords):
         assert isinstance(__keyword, str), f"Type mismatch: {__keyword}"
-        assert __keyword in dict_vocab2score, f"Keyword not found: {__keyword}"
+        if __keyword not in dict_vocab2score:
+            logger.error(f"Keyword not found: {__keyword}")
+            continue
+            # assert __keyword in dict_vocab2score, f"Keyword not found: {__keyword}"
+        # end if
 
         # set the key to the return dict
         dict_keyword2similar_vocabs[__keyword] = []
@@ -644,7 +680,10 @@ def compute_dtw_score_based_on_vocabulary_time_score(
 def visualise_compute_dtw_score_based_on_vocabulary_time_score(dict_keyword2similar_vocabs: ty.Dict[str, ty.List[ty.Tuple[str, float]]],
                                                                vocab_computed_score: ComputedVocabularyScore,
                                                                path_dir_figures: Path,
-                                                               name_excel_file: str = 'dtw_scores.xlsx',
+                                                               year_start: int,
+                                                               year_end: int,
+                                                               year_range: int,
+                                                               name_excel_file: str = 'dtw_scores.xlsx',                                                               
                                                                top_n: int = 50,
                                                                pos_filter_included: ty.Tuple[str, ...] = ('名詞', '動詞', '形容詞')):
     """visualiastion of the function return `compute_dtw_score_based_on_vocabulary_time_score`.
@@ -700,7 +739,13 @@ def visualise_compute_dtw_score_based_on_vocabulary_time_score(dict_keyword2simi
             # gettting the time sequence of the score about the keyword
             __seq_vocab_scores = dict_vocab2score[__t_vocab_similar[0]]
             __seq_vocab_scores = sorted(__seq_vocab_scores, key=lambda x: x.time_epoch)
-            __seq_vocab_scores = [{'year': TimeEpochConfiguration().get_year_label(__t.time_epoch), 'score': __t.score} for __t in __seq_vocab_scores]
+            __seq_vocab_scores = [
+                {'year': TimeEpochConfiguration(
+                    year_start=year_start,
+                    year_end=year_end,
+                    year_range=year_range
+                ).get_year_label(__t.time_epoch), 'score': __t.score} 
+            for __t in __seq_vocab_scores]
             __df_plot = pd.DataFrame(__seq_vocab_scores)
 
             # plotting
@@ -719,7 +764,8 @@ def visualise_compute_dtw_score_based_on_vocabulary_time_score(dict_keyword2simi
             # setting the plot title
             __ax.set_title(f'Keyword={__keyword} Vocabulary={__extracted_vocab} DTW={__t_vocab_similar[1]}')
 
-            __path_file = __path_dir_sub / f'rank-{__dtw_rank}_vocab-{__extracted_vocab}.png'
+            __file_name = f'rank-{__dtw_rank}_vocab-{__extracted_vocab}.png'
+            __path_file = __path_dir_sub / __file_name.replace('/', '-')
 
             __f.savefig(__path_file.as_posix(), bbox_inches='tight')
             logger.info(f'Saved the plot to {__path_file}')
@@ -728,34 +774,52 @@ def visualise_compute_dtw_score_based_on_vocabulary_time_score(dict_keyword2simi
 
 
 def main(path_config_toml: Path, 
-         path_figure_dir: Path,
          is_use_full_vocabulary: bool = False,
          dir_prefix_name: str = 'embedding_time_'):
     
     with path_config_toml.open() as f:
-        config_obj = toml.loads(f.read())
+        _config_obj = toml.loads(f.read())
     # end with
+
+    _config_preprocessed = _config_obj['PreprocessingOutputConfig']
+    _config_execution = _config_obj['ExecutionConfig']
+    _config_analysis = _config_obj['Analysis']
+
+    # -------------------------------------------------
+    # Analysis config
+    path_figure_dir = Path(_config_analysis['path_analysis_output'])
+    path_figure_dir.mkdir(parents=True, exist_ok=True)
+
+    target_keywords: ty.List[str] = _config_analysis['target_keywords']
+
+    time_label_start: int = _config_analysis['TimeEpochLabelStart']
+    time_label_end: int = _config_analysis['TimeEpochLabelEnd']
+    time_label_range: int = _config_analysis['TimeEpochLabelRange']
+
+    # -------------------------------------------------
+
+    assert 'base' in _config_execution, f"Config file must have 'base' key: {path_config_toml}"
+    assert 'path_experiment_root' in _config_execution['base'], f"Config file must have 'path_experiment_root' key: {path_config_toml}"
     
-    assert 'base' in config_obj, f"Config file must have 'base' key: {path_config_toml}"
-    assert 'path_experiment_root' in config_obj['base'], f"Config file must have 'path_experiment_root' key: {path_config_toml}"
-    
-    path_dir_exp_root = Path(config_obj['base']['path_experiment_root'])
+    path_dir_exp_root = Path(_config_execution['base']['path_experiment_root'])
     assert path_dir_exp_root.exists(), f"Experiment root directory not found: {path_dir_exp_root}"
 
     # -------------------------------------------------
     # loading vocabulary numpy array(s).
     if is_use_full_vocabulary:
+        raise NotImplementedError("Full vocabulary is not implemented yet.")
         config_obj_source_train = config_obj.get('data_source')
         config_obj_source_test = config_obj.get('data_source')
-    else:        
-        config_obj_source_train = config_obj.get('data_setting')
-        config_obj_source_test = config_obj.get('data_setting_test')
+    else:
+        __path_processed_output = Path(_config_preprocessed.get('path_resource_output'))
+        path_obj_source_train = __path_processed_output / 'train'
+        path_obj_source_test = __path_processed_output / 'test'
     # end if
-    assert config_obj_source_train is not None, f"Config file must have 'data_setting' key: {path_config_toml}"
-    assert config_obj_source_test is not None, f"Config file must have 'data_setting_test' key: {path_config_toml}"
+    assert path_obj_source_train is not None, f"Config file must have 'data_setting' key: {path_config_toml}"
+    assert path_obj_source_test is not None, f"Config file must have 'data_setting_test' key: {path_config_toml}"
 
-    dir_path_source_numpy_train = list(Path(config_obj_source_train.get('path_data_source_x')).rglob('*npy'))
-    dir_path_source_numpy_test = list(Path(config_obj_source_test.get('path_data_source_x')).rglob('*npy'))
+    dir_path_source_numpy_train = list(path_obj_source_train.rglob('*npy'))
+    dir_path_source_numpy_test = list(path_obj_source_test.rglob('*npy'))
     assert len(dir_path_source_numpy_train) > 0, f"Directory not found: {dir_path_source_numpy_train}"
     assert len(dir_path_source_numpy_test) > 0, f"Directory not found: {dir_path_source_numpy_test}"
 
@@ -775,13 +839,13 @@ def main(path_config_toml: Path,
     logger.info(f'Loaded {len(dict_epoch2embedding_test)} test embeddings.')
 
     # loading dictionary file (int -> str).
-    __path_vocab_entry_train = Path(config_obj_source_train.get('path_data_source_x')) / 'train_updated_token_entry.json'
+    __path_vocab_entry_train = path_obj_source_train / 'train_updated_token_entry.json'
     assert __path_vocab_entry_train.exists(), f"Vocabulary file not found: {__path_vocab_entry_train}"
     
     if is_use_full_vocabulary:
         pass
     else:
-        __path_vocab_entry_test = Path(config_obj_source_test.get('path_data_source_x')) / 'test_updated_token_entry.json'
+        __path_vocab_entry_test = path_obj_source_test / 'test_updated_token_entry.json'
         assert __path_vocab_entry_test.exists(), f"Vocabulary file not found: {__path_vocab_entry_test}"
     # end if
 
@@ -855,34 +919,74 @@ def main(path_config_toml: Path,
     
     vocab_computed_score = compute_vocabulary_score(seq_stack_detection_results)
     # writing out vocabulary scores to excel sheetbook.
-    __write_out_voacb_specific_time_epochs(vocab_computed_score, path_figure_dir / 'vocabulary_score.xlsx')
-    # visualisation of vobucalries over the time.
-    __path_dir_time_epoch = path_figure_dir / 'vocab-time-epoch'
-    __path_dir_time_epoch.mkdir(parents=True, exist_ok=True)
-    __visualise_target_vocabulary_over_time(vocab_computed_score, 
-                                            __path_dir_time_epoch, 
-                                            target_words=['不況_名詞', '被災_名詞', '具合_名詞'])
-    
-    # computing the DTW scores.
-    dict_dtw_score_keywords = compute_dtw_score_based_on_vocabulary_time_score(vocab_computed_score, ['不況_名詞', '被災_名詞', '具合_名詞'])
-    visualise_compute_dtw_score_based_on_vocabulary_time_score(
-        dict_keyword2similar_vocabs=dict_dtw_score_keywords,
-        vocab_computed_score=vocab_computed_score,
-        path_dir_figures=path_figure_dir / 'dtw_score',
-        name_excel_file='dtw_scores.xlsx')
+    __write_out_voacb_specific_time_epochs(computed_vocabulary_score=vocab_computed_score, 
+                                           path_output_excel=path_figure_dir / 'vocabulary_score.xlsx',
+                                           year_start=time_label_start,
+                                           year_end=time_label_end,
+                                           year_range=time_label_range)
+
+    if len(target_keywords) > 0:
+        # visualisation of vobucalries over the time.
+        __path_dir_time_epoch = path_figure_dir / 'vocab-time-epoch'
+        __path_dir_time_epoch.mkdir(parents=True, exist_ok=True)
+        __visualise_target_vocabulary_over_time(
+            computed_vocabulary_score=vocab_computed_score, 
+            path_figure_dir=__path_dir_time_epoch, 
+            target_words=target_keywords,
+            year_start=time_label_start,
+            year_end=time_label_end,
+            year_range=time_label_range)
+        
+        # computing the DTW scores.
+        dict_dtw_score_keywords = compute_dtw_score_based_on_vocabulary_time_score(
+            computed_vocabulary_score=vocab_computed_score, 
+            target_keywords=target_keywords)
+        visualise_compute_dtw_score_based_on_vocabulary_time_score(
+            dict_keyword2similar_vocabs=dict_dtw_score_keywords,
+            vocab_computed_score=vocab_computed_score,
+            path_dir_figures=path_figure_dir / 'dtw_score',
+            name_excel_file='dtw_scores.xlsx',
+            year_start=time_label_start,
+            year_end=time_label_end,
+            year_range=time_label_range,)
+    else:
+        logger.info(f'Target keywords not found. Skipping the DTW score computation.')
+    # end if
 
     # -------------------------------------------------
     # making visualisation
     
     # visualisation of heatmap of p-values.
     # making a matrix of p-values.
-    __visualise_pval_heatmap(seq_stack_detection_results, path_figure_dir)
+    __visualise_pval_heatmap(
+        seq_stack_detection_results=seq_stack_detection_results,
+        path_figure_dir=path_figure_dir,
+        year_start=time_label_start,
+        year_end=time_label_end,
+        year_range=time_label_range)
     # binary flag < 0.05 or not.
-    __visualise_pval_heatmap(seq_stack_detection_results, path_figure_dir, is_render_binary_ho_rejection=True)
+    __visualise_pval_heatmap(
+        seq_stack_detection_results, 
+        path_figure_dir, 
+        is_render_binary_ho_rejection=True,
+        year_start=time_label_start,
+        year_end=time_label_end,
+        year_range=time_label_range)
     
     # visualisation of heatmap of variable count.
-    __visualise_variable_count(seq_stack_detection_results, path_figure_dir)
-    __visualise_variable_count(seq_stack_detection_results, path_figure_dir, is_render_binary_ho_rejection=True)
+    __visualise_variable_count(
+        seq_stack_detection_results=seq_stack_detection_results, 
+        path_figure_dir=path_figure_dir,
+        year_start=time_label_start,
+        year_end=time_label_end,
+        year_range=time_label_range)
+    __visualise_variable_count(
+        seq_stack_detection_results=seq_stack_detection_results, 
+        path_figure_dir=path_figure_dir, 
+        is_render_binary_ho_rejection=True,
+        year_start=time_label_start,
+        year_end=time_label_end,
+        year_range=time_label_range)
     # -------------------------------------------------
     # non-completed codes below
     # detection of common and uncommon variables
@@ -891,10 +995,26 @@ def main(path_config_toml: Path,
     # 
     # __collect_json_files()
 
-if __name__ == '__main__':
+
+def _test():
     # the common config toml file as the config for the interface.py
-    PATH_CONFIG = '/home/mitsuzaw/codes/dev/mmd-tst-variable-detector/demos/demo_word_embedding/configurations/all_pair_time_epoch_base-ver3.toml'
-    PATH_IMG_DIR = '/media/DATA/mitsuzaw/project_papers/project_thesis/demo_word_embedding/preprocessed-noun-ver3/analysis_figures'
+    PATH_CONFIG = '/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/configs/mainichi_corpus.toml'
     assert Path(PATH_CONFIG).exists(), f"Config file not found: {PATH_CONFIG}"
     
-    main(Path(PATH_CONFIG), Path(PATH_IMG_DIR), is_use_full_vocabulary=True)
+    main(
+        path_config_toml=Path(PATH_CONFIG), 
+        is_use_full_vocabulary=False)
+
+
+if __name__ == '__main__':
+    # the common config toml file as the config for the interface.py
+    # PATH_CONFIG = '/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/configs/mainichi_corpus.toml'
+    from argparse import ArgumentParser
+    __opt = ArgumentParser()
+    __opt.add_argument('-c', '--config', type=str, required=True, help='Path to the config file.')
+    _parser = __opt.parse_args()
+    assert Path(_parser.config).exists(), f"Config file not found: {_parser.config}"
+    
+    main(
+        path_config_toml=Path(_parser.config), 
+        is_use_full_vocabulary=False)

@@ -12,7 +12,7 @@
 
 
 [ExecutionConfig]
-    [base]
+    [ExecutionConfig.base]
         file_name_sqlite3 = "exp_result.sqlite3"
         name_experiment_db = "experiment.json"
 
@@ -22,7 +22,7 @@
         dir_models = "models"
         dir_logs = "logs"
 
-    [device]
+    [ExecutionConfig.device]
         train_accelerator = 'cuda'
         # 'single' or 'dask'. Use 'single' when you encounter issues.
         distributed_mode = 'single'
@@ -34,22 +34,32 @@
         # the number of threads per worker.
         dask_threads_per_worker = 0
 
-    [approach]
+    [ExecutionConfig.approach]
         option_approach = ['wasserstein_independence', 'algorithm_one']
 
-    [mmd_baseline]
+    [ExecutionConfig.mmd_baseline]
         devices = 'auto'
         MAX_EPOCH = 9999
 
 
-    [mmd_algorithm_one]
+    [ExecutionConfig.mmd_algorithm_one]
         max_epoch = 9999
         aggregation_kernel_length_scale = 'mean'
 
 
-    [cv_selection]
+    [ExecutionConfig.cv_selection]
         MAX_EPOCH = 9999
         candidate_regularization_parameter = 'auto'
         n_regularization_parameter = 5
 
         n_subsampling = 10
+
+[Analysis]
+    path_analysis_output = "/workdir/kmitsuzawa/DATA/mitsuzaw/eurecom/project_word_sense/coha/analysis_output"
+
+    target_keywords = []
+    
+    TimeEpochLabelStart = 1810
+    TimeEpochLabelEnd = 2010
+    TimeEpochLabelRange = 10
+    
