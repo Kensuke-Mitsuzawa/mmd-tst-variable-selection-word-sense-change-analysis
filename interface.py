@@ -330,11 +330,13 @@ def execute_all_pairwise_combination(execution_config: ExecutionConfig,
         __path_pair_root_alt = path_root_dir / f'{__t_file_pair[1].stem}_{__t_file_pair[0].stem}'
         __config_obj.base.path_experiment_root = __path_pair_root.as_posix()
         
-        # skip the same process if the directory already exists.
-        if (__path_pair_root.exists() or __path_pair_root_alt.exists()) and is_redo is False:
-            logger.info(f'Skipping the same process since the directory already exists: {__path_pair_root}')
-            continue
-        # end if
+        # # skip the same process if the directory already exists.
+        # if (__path_pair_root.exists() or __path_pair_root_alt.exists()) and is_redo is False:
+        #     __path_output_file = __path_pair_root / f'{__t_file_pair[0].stem}_{__t_file_pair[1].stem}.json'
+        #     __path_output_file_alt = __path_pair_root_alt / f'{__t_file_pair[1].stem}_{__t_file_pair[0].stem}.json'
+        #     logger.info(f'Skipping the same process since the directory already exists: {__path_pair_root}')
+        #     continue
+        # # end if
         
         _data_setting_train = DataSettingConfig(
             path_data_source_x=__t_file_pair[0].as_posix(),
@@ -363,7 +365,7 @@ def execute_all_pairwise_combination(execution_config: ExecutionConfig,
         
         logger.info(f'The new config file is ready at {__new_toml_config}. The work directory is {__path_pair_root}')
         
-        main_single_run(__new_toml_config)
+        main_single_run(__new_toml_config, is_redo=is_redo)
 
         # # Define the shell command.
         # _shell_commands = [path_python_interpreter.as_posix(), 
@@ -412,8 +414,7 @@ if __name__ == "__main__":
     assert path_config.exists(), f'Not found: {path_config}'
 
     __config_obj = toml.loads(path_config.open().read())
-
-    __execution_config = dacite.from_dict(data_class=ExecutionConfig, data=__config_obj)
+    __execution_config = dacite.from_dict(data_class=ExecutionConfig, data=__config_obj['ExecutionConfig'])
 
     logger.info("---- Begin of the script ----")
     if __args.mode == 'single_run':
