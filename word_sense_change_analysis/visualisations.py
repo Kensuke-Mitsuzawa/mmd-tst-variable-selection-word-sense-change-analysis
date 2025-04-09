@@ -914,6 +914,9 @@ def main(path_config_toml: Path,
         with __path_vocab_entry_full.open() as f:
             dict_vocab_entry_full = {int(_k): _v for _k, _v in json.loads(f.read()).items()}
         # end with
+    else:
+        dict_vocab_entry_full = {}
+    # end if
     
     assert len(set(dict_vocab_entry_train.values()).intersection(dict_vocab_entry_test.values())) == 0, f"Vocabulary conflict"
     # -------------------------------------------------
