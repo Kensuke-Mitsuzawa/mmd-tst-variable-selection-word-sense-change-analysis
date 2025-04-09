@@ -138,12 +138,20 @@ def __extract_detection_one_pair(path_result_dir: Path,
                                  is_use_full_vocabulary: bool = False,
                                  dict_epoch2embedding_full: ty.Optional[ty.Dict[int, np.ndarray]] = None,
                                  dict_vocab_entry_full: ty.Optional[ty.Dict[int, str]] = None,
+                                 skip_epoch_index: ty.Optional[ty.List[int]] = None
                                  ) -> ty.Optional[OnePairDetectionResult]:
     """Loading various data source, packing all into an object."""
     name_directory = path_result_dir.name
     assert name_directory.startswith(dir_prefix_name), f"Directory name must start with {dir_prefix_name}: {name_directory}"
     name_directory_without_prefix = name_directory.replace(dir_prefix_name, '')
     epoch_no_x, epoch_no_y = name_directory_without_prefix.split('_')
+
+    if skip_epoch_index is not None:
+        if int(epoch_no_x) in skip_epoch_index or int(epoch_no_y) in skip_epoch_index:
+            logger.info(f"Skipping the epoch pair: {epoch_no_x} {epoch_no_y}")
+            return None
+        # end if
+    # end if
     
     path_detection_file_json = path_result_dir / 'detection_output' / detection_approach
     
@@ -815,6 +823,8 @@ def main(path_config_toml: Path,
     time_label_end: int = _config_analysis['TimeEpochLabelEnd']
     time_label_range: int = _config_analysis['TimeEpochLabelRange']
 
+    skip_epoch_index: ty.List[int] = _config_analysis['skip_epoch_index']
+
     # -------------------------------------------------
 
     assert 'base' in _config_execution, f"Config file must have 'base' key: {path_config_toml}"
@@ -851,10 +861,20 @@ def main(path_config_toml: Path,
 
     for _path in dir_path_source_numpy_train:
         _epoch_no = int(_path.stem.split('_')[-1])
+        if _epoch_no in skip_epoch_index:
+            logger.debug(f"Skipping: {_epoch_no}")
+            continue
+        # end if
+
         dict_epoch2embedding_train[_epoch_no] = np.load(_path)
     # end for
     for _path in dir_path_source_numpy_test:
         _epoch_no = int(_path.stem.split('_')[-1])
+        if _epoch_no in skip_epoch_index:
+            logger.debug(f"Skipping: {_epoch_no}")
+            continue
+        # end if
+
         dict_epoch2embedding_test[_epoch_no] = np.load(_path)
     # end for
     logger.info(f'Loaded {len(dict_epoch2embedding_train)} train embeddings.')
@@ -929,7 +949,8 @@ def main(path_config_toml: Path,
                                                         dict_vocab_entry_test,
                                                         is_use_full_vocabulary=is_use_full_vocabulary,
                                                         dict_epoch2embedding_full=dict_epoch2embedding_full,
-                                                        dict_vocab_entry_full=dict_vocab_entry_full)
+                                                        dict_vocab_entry_full=dict_vocab_entry_full,
+                                                        skip_epoch_index=skip_epoch_index,)
         if __obj_extraction is not None:
             seq_stack_detection_results.append(__obj_extraction)
         # end if

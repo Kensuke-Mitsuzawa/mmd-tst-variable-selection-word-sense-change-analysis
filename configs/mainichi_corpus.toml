@@ -68,3 +68,4 @@
     TimeEpochLabelEnd = 2020
     TimeEpochLabelRange = 1
 
+    skip_epoch_index = [0]
