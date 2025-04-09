@@ -32,6 +32,7 @@ class PreprocessingSourceConfig:
 class PreprocessingOutputConfig:
     path_resource_output: str
 
+    dir_name_full_array: str = 'full'
     dir_name_train: str = 'train'
     dir_name_test: str = 'test'
 
@@ -66,9 +67,12 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
     path_dir_out_train.mkdir(parents=True, exist_ok=True)
     path_dir_out_test.mkdir(parents=True, exist_ok=True)
 
-    
+    path_dir_array_full = path_dir_output / output_config.dir_name_full_array
+
     path_dir_out_train.mkdir(parents=True, exist_ok=True)
     path_dir_out_test.mkdir(parents=True, exist_ok=True)
+    path_dir_array_full.mkdir(parents=True, exist_ok=True)
+
     
     token_entry = pickle.load(open(path_token_entry, 'rb'))  # dict file
     logger.info(f'Count token of embeddings: {len(token_entry)}')
@@ -159,7 +163,8 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
         _row_start = i_current_time_epoch * len(token_entry)
         _row_end = _row_start + len(token_entry)
         try:
-            _embeddings_in_range = whole_embeddings_over_time[_row_start:_row_end]
+            _embeddings_in_range_full = whole_embeddings_over_time[_row_start:_row_end]
+            _embeddings_in_range = _embeddings_in_range_full.copy()
         except IndexError:
             breakpoint()
             logger.error(f'IndexError: {_row_start}:{_row_end}')
@@ -181,6 +186,10 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
         logger.info(f'Embedding Array for train: {_embeddings_in_range_train.shape}')
         logger.info(f'Embedding Array for test: {_embeddings_in_range_test.shape}')
 
+        # saving the full array
+        _path_out_full_array = path_dir_array_full / f'embedding_time_{_name_current_time_epoch}.npy'
+        np.save(_path_out_full_array, _embeddings_in_range_full)
+
         # saving the train
         _path_out_embedding_time_train = path_dir_out_train / f'embedding_time_{_name_current_time_epoch}.npy'
         np.save(_path_out_embedding_time_train, _embeddings_in_range_train)
@@ -193,25 +202,29 @@ def main(source_config: PreprocessingSourceConfig, output_config: PreprocessingO
     # end for
     
     # saving the updated token entry.
-    if n_token_used != -1:
-        # pickle dump, just for keeping consistency.
-        path_out_token_entry_train = path_dir_out_train / 'train_updated_token_entry.pkl'
-        path_out_token_entry_test = path_dir_out_test / 'test_updated_token_entry.pkl'
-        pickle.dump(token_entry_updated_train, open(path_out_token_entry_train, 'wb'))
-        pickle.dump(token_entry_updated_test, open(path_out_token_entry_test, 'wb'))
-        logger.info(f'Saved: {path_out_token_entry_train}, {path_out_token_entry_test}')
-        
-        # I prefer json, to be honest.
-        path_out_token_entry_train = path_dir_out_train / 'train_updated_token_entry.json'
-        path_out_token_entry_test = path_dir_out_test / 'test_updated_token_entry.json'
-        with path_out_token_entry_train.open('w') as f:
-            f.write(json.dumps(token_entry_updated_train, ensure_ascii=False, indent=4))
-        # end with
-        with path_out_token_entry_test.open('w') as f:
-            f.write(json.dumps(token_entry_updated_test, ensure_ascii=False, indent=4))
-        # end with
-        logger.info(f'Saved: {path_out_token_entry_train}, {path_out_token_entry_test}')    
-    # end if
+    # pickle dump, just for keeping consistency.
+    path_out_token_entry_train = path_dir_out_train / 'train_updated_token_entry.pkl'
+    path_out_token_entry_test = path_dir_out_test / 'test_updated_token_entry.pkl'
+    pickle.dump(token_entry_updated_train, open(path_out_token_entry_train, 'wb'))
+    pickle.dump(token_entry_updated_test, open(path_out_token_entry_test, 'wb'))
+    logger.info(f'Saved: {path_out_token_entry_train}, {path_out_token_entry_test}')
+    
+    # I prefer json, to be honest.
+    path_out_token_entry_train = path_dir_out_train / 'train_updated_token_entry.json'
+    path_out_token_entry_test = path_dir_out_test / 'test_updated_token_entry.json'
+    with path_out_token_entry_train.open('w') as f:
+        f.write(json.dumps(token_entry_updated_train, ensure_ascii=False, indent=4))
+    # end with
+    with path_out_token_entry_test.open('w') as f:
+        f.write(json.dumps(token_entry_updated_test, ensure_ascii=False, indent=4))
+    # end with
+    logger.info(f'Saved: {path_out_token_entry_train}, {path_out_token_entry_test}')
+
+    path_out_token_entry_full = path_dir_array_full / 'full_updated_token_entry.json'
+    with path_out_token_entry_full.open('w') as f:
+        f.write(json.dumps(token_entry, ensure_ascii=False, indent=4))
+    # end with
+    logger.info(f'Saved: {path_out_token_entry_full}')
 
     # double-check if there are number of files as expected.
     n_files_train = len(list(path_dir_out_train.glob('embedding_time_*.npy')))

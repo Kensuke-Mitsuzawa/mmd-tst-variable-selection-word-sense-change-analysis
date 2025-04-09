@@ -6,6 +6,7 @@
 
 [PreprocessingOutputConfig]
     path_resource_output = "/home/kmitsuzawa/codes/mmd-tst-variable-selection-word-sense-change-analysis/resources/processed/coha"
+    dir_name_full_array = "full"
 
     n_token_train = 400
     n_token_test = 105

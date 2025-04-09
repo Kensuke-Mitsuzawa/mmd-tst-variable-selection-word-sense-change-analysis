@@ -119,6 +119,7 @@ class OnePairDetectionResult:
 
     embeddings_train: EmbeddingArraySet
     embeddings_test: ty.Optional[EmbeddingArraySet]
+    embedding_full: ty.Optional[EmbeddingArraySet] = None
     
     def __str__(self) -> str:
         return 'Pair of epochs: {}'.format(self.pair_key)
@@ -134,7 +135,10 @@ def __extract_detection_one_pair(path_result_dir: Path,
                                  dict_vocab_entry_test: ty.Dict[int, str],
                                  detection_approach: str = 'interpretable_mmd-algorithm_one.json',
                                  dir_prefix_name: str = 'embedding_time_',
-                                 is_use_full_vocabulary: bool = False) -> ty.Optional[OnePairDetectionResult]:
+                                 is_use_full_vocabulary: bool = False,
+                                 dict_epoch2embedding_full: ty.Optional[ty.Dict[int, np.ndarray]] = None,
+                                 dict_vocab_entry_full: ty.Optional[ty.Dict[int, str]] = None,
+                                 ) -> ty.Optional[OnePairDetectionResult]:
     """Loading various data source, packing all into an object."""
     name_directory = path_result_dir.name
     assert name_directory.startswith(dir_prefix_name), f"Directory name must start with {dir_prefix_name}: {name_directory}"
@@ -167,14 +171,22 @@ def __extract_detection_one_pair(path_result_dir: Path,
         embedding_array_x=dict_epoch2embedding_train[int_epoch_no_x], 
         embedding_array_y=dict_epoch2embedding_train[int_epoch_no_y],
         dict_vocab_entry=dict_vocab_entry_train)
+    emb_set_test = EmbeddingArraySet(
+        embedding_array_x=dict_epoch2embedding_test[int_epoch_no_x], 
+        embedding_array_y=dict_epoch2embedding_test[int_epoch_no_y],
+        dict_vocab_entry=dict_vocab_entry_test)    
+
     if is_use_full_vocabulary:
-        emb_set_test = None
+        assert dict_epoch2embedding_full is not None, f"Full vocabulary not found."
+        assert dict_vocab_entry_full is not None, f"Full vocabulary not found."
+        emb_set_full = EmbeddingArraySet(
+            embedding_array_x=dict_epoch2embedding_full[int_epoch_no_x],
+            embedding_array_y=dict_epoch2embedding_full[int_epoch_no_y],
+            dict_vocab_entry=dict_vocab_entry_full)
     else:
-        emb_set_test = EmbeddingArraySet(
-            embedding_array_x=dict_epoch2embedding_test[int_epoch_no_x], 
-            embedding_array_y=dict_epoch2embedding_test[int_epoch_no_y],
-            dict_vocab_entry=dict_vocab_entry_test)    
+        emb_set_full = None
     # end if
+
     
     one_pair_detection_result = OnePairDetectionResult(
         pair_key=({int_epoch_no_x, int_epoch_no_y}),
@@ -186,7 +198,8 @@ def __extract_detection_one_pair(path_result_dir: Path,
         p_value=p_vals,
         path_result_dir=path_result_dir,
         embeddings_train=emb_set_train,
-        embeddings_test=emb_set_test)
+        embeddings_test=emb_set_test,
+        embedding_full=emb_set_full)
     # 
     
     return one_pair_detection_result
@@ -373,7 +386,7 @@ class ComputedVocabularyScore(ty.NamedTuple):
 
 
 def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetectionResult],
-                             is_use_full_vocabulary: bool = True) -> ComputedVocabularyScore:
+                             is_use_full_vocabulary: bool = False) -> ComputedVocabularyScore:
     """This function computes 3 scores.
     1. score for each vocabulary.
     2. score for each vocabulary over the time epochs.
@@ -383,11 +396,13 @@ def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetecti
     The score is mean([distance-time-i-j, ...]), where distance-time-i-j is the cosine distance between time-i and time-j, I use only selected variables for this computation.
     """
     # -------------------------------------------------
-    # joining two vocab dictionary together. Assigning a new id to test-vocabs.
     if is_use_full_vocabulary:
-        vocab_train = seq_stack_detection_results[0].embeddings_train.dict_vocab_entry
-        vocab_join = copy.deepcopy(vocab_train)
+        # I use the full vocabulary.
+        assert seq_stack_detection_results[0].embedding_full is not None, f"Full vocabulary not found."
+        vocab_join = seq_stack_detection_results[0].embedding_full.dict_vocab_entry
     else:
+        # I use vocabularies, train + test
+        # joining two vocab dictionary together. Assigning a new id to test-vocabs.
         assert seq_stack_detection_results[0].embeddings_test is not None, f"Test vocabularies not found."
         vocab_train = seq_stack_detection_results[0].embeddings_train.dict_vocab_entry
         vocab_test = seq_stack_detection_results[0].embeddings_test.dict_vocab_entry
@@ -427,13 +442,14 @@ def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetecti
 
             # -------------------------------------------------
             # concatenating the embeddings
-            __embedding_train_x = __obj_time.embeddings_train.embedding_array_x
-            __embedding_train_y = __obj_time.embeddings_train.embedding_array_y
-            
             if is_use_full_vocabulary:
-                __embedding_x = __embedding_train_x
-                __embedding_y = __embedding_train_y
+                assert __obj_time.embedding_full is not None, f"Full vocabulary not found."
+                __embedding_x = __obj_time.embedding_full.embedding_array_x
+                __embedding_y = __obj_time.embedding_full.embedding_array_y
             else:
+                __embedding_train_x = __obj_time.embeddings_train.embedding_array_x
+                __embedding_train_y = __obj_time.embeddings_train.embedding_array_y
+                
                 assert __obj_time.embeddings_test is not None, f"Test embeddings not found."
                 __embedding_test_x = __obj_time.embeddings_test.embedding_array_x
                 __embedding_test_y = __obj_time.embeddings_test.embedding_array_y
@@ -464,6 +480,8 @@ def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetecti
             stack_score_token.append( __info_tuple_score )
         # end for
 
+        # -------------------------------------------------
+        # Core of computing the score
         # getting the avg score
         __avg_score = np.mean([__t.score for __t in stack_score_token])  # float
         # logger.debug(f'Vocabulary={__vocab}. Score={__avg_score}')
@@ -483,7 +501,6 @@ def compute_vocabulary_score(seq_stack_detection_results: ty.List[OnePairDetecti
         
     # a binary flag if using time epochs where H0 is accepted.
     is_include_time_epoch_accept_h0 = False
-    is_use_original_embedding = False
     
     __seq_tuple_vocab_score = []
     for __vocab, __seq_tuple_scores in map_token2scores_epochs.items():
@@ -806,14 +823,17 @@ def main(path_config_toml: Path,
 
     # -------------------------------------------------
     # loading vocabulary numpy array(s).
+    __path_processed_output = Path(_config_preprocessed.get('path_resource_output'))
     if is_use_full_vocabulary:
-        raise NotImplementedError("Full vocabulary is not implemented yet.")
-        config_obj_source_train = config_obj.get('data_source')
-        config_obj_source_test = config_obj.get('data_source')
+        path_obj_source_full = __path_processed_output / 'full'
+        dir_path_source_numpy_full = list(path_obj_source_full.rglob('*npy'))
+        assert len(dir_path_source_numpy_full) > 0, f"Directory not found: {dir_path_source_numpy_full}"
     else:
-        __path_processed_output = Path(_config_preprocessed.get('path_resource_output'))
-        path_obj_source_train = __path_processed_output / 'train'
-        path_obj_source_test = __path_processed_output / 'test'
+        path_obj_source_full = None
+    # end if
+
+    path_obj_source_train = __path_processed_output / 'train'
+    path_obj_source_test = __path_processed_output / 'test'
     # end if
     assert path_obj_source_train is not None, f"Config file must have 'data_setting' key: {path_config_toml}"
     assert path_obj_source_test is not None, f"Config file must have 'data_setting_test' key: {path_config_toml}"
@@ -838,28 +858,40 @@ def main(path_config_toml: Path,
     logger.info(f'Loaded {len(dict_epoch2embedding_train)} train embeddings.')
     logger.info(f'Loaded {len(dict_epoch2embedding_test)} test embeddings.')
 
+    if is_use_full_vocabulary:
+        dict_epoch2embedding_full = {}
+        for _path in dir_path_source_numpy_full:
+            _epoch_no = int(_path.stem.split('_')[-1])
+            dict_epoch2embedding_full[_epoch_no] = np.load(_path)
+        # end for
+        logger.info(f'Loaded {len(dict_epoch2embedding_full)} full embeddings.')
+    else:
+        dict_epoch2embedding_full = None
+    # end if
+    # -------------------------------------------------
+
     # loading dictionary file (int -> str).
     __path_vocab_entry_train = path_obj_source_train / 'train_updated_token_entry.json'
     assert __path_vocab_entry_train.exists(), f"Vocabulary file not found: {__path_vocab_entry_train}"
     
-    if is_use_full_vocabulary:
-        pass
-    else:
-        __path_vocab_entry_test = path_obj_source_test / 'test_updated_token_entry.json'
-        assert __path_vocab_entry_test.exists(), f"Vocabulary file not found: {__path_vocab_entry_test}"
-    # end if
-
+    __path_vocab_entry_test = path_obj_source_test / 'test_updated_token_entry.json'
+    assert __path_vocab_entry_test.exists(), f"Vocabulary file not found: {__path_vocab_entry_test}"
+    
     with __path_vocab_entry_train.open() as f:
         dict_vocab_entry_train = {int(_k): _v for _k, _v in json.loads(f.read()).items()}
     # end with
     
+    with __path_vocab_entry_test.open() as f:
+        dict_vocab_entry_test = {int(_k): _v for _k, _v in json.loads(f.read()).items()}
+    # end with
+
     if is_use_full_vocabulary:
-        dict_vocab_entry_test = {}
-    else:
-        with __path_vocab_entry_test.open() as f:
-            dict_vocab_entry_test = {int(_k): _v for _k, _v in json.loads(f.read()).items()}
+        assert path_obj_source_full is not None, f"Config file must have 'data_setting_full' key: {path_config_toml}"
+        __path_vocab_entry_full = path_obj_source_full / 'full_updated_token_entry.json'
+        assert __path_vocab_entry_full.exists(), f"Vocabulary file not found: {__path_vocab_entry_full}"
+        with __path_vocab_entry_full.open() as f:
+            dict_vocab_entry_full = {int(_k): _v for _k, _v in json.loads(f.read()).items()}
         # end with
-    # end if
     
     assert len(set(dict_vocab_entry_train.values()).intersection(dict_vocab_entry_test.values())) == 0, f"Vocabulary conflict"
     # -------------------------------------------------
@@ -893,7 +925,9 @@ def main(path_config_toml: Path,
                                                         dict_epoch2embedding_test,
                                                         dict_vocab_entry_train,
                                                         dict_vocab_entry_test,
-                                                        is_use_full_vocabulary=is_use_full_vocabulary)
+                                                        is_use_full_vocabulary=is_use_full_vocabulary,
+                                                        dict_epoch2embedding_full=dict_epoch2embedding_full,
+                                                        dict_vocab_entry_full=dict_vocab_entry_full)
         if __obj_extraction is not None:
             seq_stack_detection_results.append(__obj_extraction)
         # end if
@@ -917,7 +951,7 @@ def main(path_config_toml: Path,
     # -------------------------------------------------
     # procedure: scoring vocabularies
     
-    vocab_computed_score = compute_vocabulary_score(seq_stack_detection_results)
+    vocab_computed_score = compute_vocabulary_score(seq_stack_detection_results, is_use_full_vocabulary=is_use_full_vocabulary)
     # writing out vocabulary scores to excel sheetbook.
     __write_out_voacb_specific_time_epochs(computed_vocabulary_score=vocab_computed_score, 
                                            path_output_excel=path_figure_dir / 'vocabulary_score.xlsx',
@@ -1012,9 +1046,10 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
     __opt = ArgumentParser()
     __opt.add_argument('-c', '--config', type=str, required=True, help='Path to the config file.')
+    __opt.add_argument('-f', '--full', action='store_true', help='Use full vocabulary.')
     _parser = __opt.parse_args()
     assert Path(_parser.config).exists(), f"Config file not found: {_parser.config}"
     
     main(
         path_config_toml=Path(_parser.config), 
-        is_use_full_vocabulary=False)
+        is_use_full_vocabulary=True if _parser.full else False)

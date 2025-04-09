@@ -6,7 +6,10 @@
 
 [PreprocessingOutputConfig]
     path_resource_output = "/workdir/kmitsuzawa/DATA/mitsuzaw/eurecom/project_word_sense/processed/mainichi"
+    dir_name_full_array = "full"
 
+    n_token_train= 2000
+    n_token_test = 300
 
 [ExecutionConfig]
     [ExecutionConfig.base]
