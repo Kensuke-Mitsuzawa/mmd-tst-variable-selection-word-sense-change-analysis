@@ -38,15 +38,20 @@ def visualisation_main(path_experiment_root: Path,
                        config_obj: ty.Dict, 
                        file_name_result_json: str = "mmd_distance_result.json",
                        sub_dir_name: str = "mmd_distances"):
-    def visualise_mmd_distance(seq_stack_detection_results: ty.List[ty.Dict], 
+    def visualise_mmd_distance(seq_stack_detection_results: ty.List[ty.Dict],
+                               target_field: str, 
                                 path_plot_save: Path,
                                 year_start: int,
                                 year_end: int,
-                                year_range: int):
+                                year_range: int,
+                                sep_skip_year: ty.List):
+        assert target_field in ('mmd', 'ratio')
+
         year_convertor = visualisations.TimeEpochConfiguration(
             year_start=year_start,
             year_end=year_end,
-            year_range=year_range
+            year_range=year_range,
+            sep_skip_year=sep_skip_year
         )
 
         seq_obj_matrix = []
@@ -59,15 +64,23 @@ def visualisation_main(path_experiment_root: Path,
             _obj_updated = {
                 'x': year_convertor.get_year_label(int(_obj['epoch_no_x'])),
                 'y': year_convertor.get_year_label(int(_obj['epoch_no_y'])),
-                'mmd': _obj['mmd_distance']
             }
+            
+            if target_field == "mmd":
+                _obj_updated.update({'mmd': _obj['mmd_distance']})
+            elif target_field == "ratio":
+                _obj_updated.update({'ratio': _obj['ratio']})
+            else:
+                raise ValueError()
+            # end if
+
             seq_obj_matrix.append(_obj_updated)
         # end for
 
         df_vals = pd.DataFrame(seq_obj_matrix)
         
         f, ax = plt.subplots(figsize=(9, 6))
-        df_pivot = df_vals.pivot(index='x', columns='y', values='mmd')
+        df_pivot = df_vals.pivot(index='x', columns='y', values=target_field)
 
         sns.heatmap(df_pivot, annot=False, linewidths=.5, ax=ax, annot_kws={"fontsize": 12})
 
@@ -92,7 +105,12 @@ def visualisation_main(path_experiment_root: Path,
     time_label_end: int = _config_analysis['TimeEpochLabelEnd']
     time_label_range: int = _config_analysis['TimeEpochLabelRange']
 
-    skip_epoch_index: ty.List[int] = _config_analysis['skip_epoch_index']
+    if 'sep_skip_year' in _config_analysis:
+        sep_skip_year : ty.List[int] = _config_analysis["sep_skip_year"]
+    else:
+        sep_skip_year = []
+    # end if
+    # skip_epoch_index: ty.List[int] = _config_analysis['skip_epoch_index']
     # -------------------------------------------------
 
     path_mmd_distance_result_json = Path(path_experiment_root) / sub_dir_name / file_name_result_json
@@ -119,15 +137,47 @@ def visualisation_main(path_experiment_root: Path,
 
 
     path_figure_save = Path(path_experiment_root) / sub_dir_name / "mmd_heatmap.png"
-
     visualise_mmd_distance(
         seq_stack_detection_results=seq_dict_mmd_distance,
+        target_field='mmd',
         path_plot_save=path_figure_save,
         year_start=time_label_start,
         year_end=time_label_end,
-        year_range=time_label_range)
+        year_range=time_label_range,
+        sep_skip_year=sep_skip_year)
+    
+    path_figure_save = Path(path_experiment_root) / sub_dir_name / "ratio.png"
+    visualise_mmd_distance(
+        seq_stack_detection_results=seq_dict_mmd_distance,
+        target_field='ratio',
+        path_plot_save=path_figure_save,
+        year_start=time_label_start,
+        year_end=time_label_end,
+        year_range=time_label_range,
+        sep_skip_year=sep_skip_year)
 
-
+    # # coha dataset temp codes
+    # # filtering out the file index 0
+    # seq_dict_mmd_distance_filtered = [_d for _d in seq_dict_mmd_distance if _d['epoch_no_x'] != 1 and _d['epoch_no_y'] != 1]
+    # path_figure_save = Path(path_experiment_root) / sub_dir_name / "mmd_heatmap_from_1830.png"
+    # visualise_mmd_distance(
+    #     seq_stack_detection_results=seq_dict_mmd_distance_filtered,
+    #     target_field='mmd',
+    #     path_plot_save=path_figure_save,
+    #     year_start=1830,
+    #     year_end=time_label_end,
+    #     year_range=time_label_range,
+    #     sep_skip_year=sep_skip_year)
+    
+    # path_figure_save = Path(path_experiment_root) / sub_dir_name / "ratio_from_1830.png"
+    # visualise_mmd_distance(
+    #     seq_stack_detection_results=seq_dict_mmd_distance_filtered,
+    #     target_field='ratio',
+    #     path_plot_save=path_figure_save,
+    #     year_start=1830,
+    #     year_end=time_label_end,
+    #     year_range=time_label_range,
+    #     sep_skip_year=sep_skip_year)
 
 
 def execute_all_pairwise_combination(path_experiment_root: Path,
