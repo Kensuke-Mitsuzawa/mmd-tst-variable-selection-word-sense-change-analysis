@@ -62,7 +62,9 @@
         "men",
         "man",
         "human",
-        "family"
+        "family",
+        "woman",
+        "representative"
     ]
     
     TimeEpochLabelStart = 1810
