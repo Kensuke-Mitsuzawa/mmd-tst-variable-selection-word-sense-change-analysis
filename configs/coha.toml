@@ -60,8 +60,10 @@
 
     target_keywords = []
     
-    TimeEpochLabelStart = 1820
+    TimeEpochLabelStart = 1810
     TimeEpochLabelEnd = 2010
     TimeEpochLabelRange = 10
     
-    skip_epoch_index = [1]
+    skip_epoch_index = []
+
+    sep_skip_year = [1820]

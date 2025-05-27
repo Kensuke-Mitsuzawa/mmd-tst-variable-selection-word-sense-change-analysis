@@ -58,14 +58,26 @@ class TimeEpochConfiguration(object):
     def __init__(self,
                  year_start: int,
                  year_end: int,
-                 year_range: int) -> None:
+                 year_range: int,
+                 sep_skip_year: ty.Optional[ty.List[int]] = None) -> None:
         self.year_start: int = year_start
         self.year_end: int = year_end
         self.year_range: int = year_range
+        self.sep_skip_year = sep_skip_year
     
     def get_year_label(self, time_epoch_index: int) -> int:
         """Getting the year label."""
-        return self.year_start + (time_epoch_index - 1) * self.year_range
+        year = self.year_start + (time_epoch_index - 1) * self.year_range
+        if self.sep_skip_year is not None:
+            for _year_label_skip in self.sep_skip_year:
+                if year >= _year_label_skip:
+                    year += self.year_range
+                else:
+                    continue
+                # end if
+            # end for
+        # end if
+        return year
     
 
 # -------------------------------------------------
@@ -198,11 +210,13 @@ def __visualise_pval_heatmap(seq_stack_detection_results: ty.List[OnePairDetecti
                              year_start: int,
                              year_end: int,
                              year_range: int,
-                             is_render_binary_ho_rejection: bool = False):
+                             is_render_binary_ho_rejection: bool = False,
+                             time_sep_skip_year: ty.Optional[ty.List[int]] = None):
     year_convertor = TimeEpochConfiguration(
         year_start=year_start,
         year_end=year_end,
-        year_range=year_range
+        year_range=year_range,
+        sep_skip_year=time_sep_skip_year
     )
     
     seq_obj_p_value_matrix = [
@@ -247,11 +261,13 @@ def __visualise_variable_count(seq_stack_detection_results: ty.List[OnePairDetec
                                year_start: int,
                                year_end: int,
                                year_range: int,
-                               is_render_binary_ho_rejection: bool = False):
+                               is_render_binary_ho_rejection: bool = False,
+                               time_sep_skip_year: ty.Optional[ty.List[int]] = None):
     year_convertor = TimeEpochConfiguration(
         year_start=year_start,
         year_end=year_end,
-        year_range=year_range
+        year_range=year_range,
+        sep_skip_year=time_sep_skip_year
     )
 
     seq_obj_p_value_matrix = [
@@ -278,7 +294,7 @@ def __visualise_variable_count(seq_stack_detection_results: ty.List[OnePairDetec
     f, ax = plt.subplots(figsize=(9, 6))
     df_pivot = df_p_vals.pivot(index='x', columns='y', values='n_variables')
 
-    sns.heatmap(df_pivot, annot=True, linewidths=.5, ax=ax, annot_kws={"fontsize": 12})
+    sns.heatmap(df_pivot, annot=True, linewidths=.5, ax=ax, fmt='.0f', annot_kws={"fontsize": 12})
 
     if is_render_binary_ho_rejection:
         _path_save = path_figure_dir / 'heatmap_variable_count_p_val_filtering.png'
@@ -802,6 +818,12 @@ def main(path_config_toml: Path,
     time_label_start: int = _config_analysis['TimeEpochLabelStart']
     time_label_end: int = _config_analysis['TimeEpochLabelEnd']
     time_label_range: int = _config_analysis['TimeEpochLabelRange']
+    
+    if "sep_skip_year" in _config_analysis:
+        time_sep_skip_year = _config_analysis['sep_skip_year']  # a list of year that I skip during year label generation.
+    else:
+        time_sep_skip_year = []
+    # end if
 
     skip_epoch_index: ty.List[int] = _config_analysis['skip_epoch_index']
 
@@ -1003,7 +1025,8 @@ def main(path_config_toml: Path,
         path_figure_dir=path_figure_dir,
         year_start=time_label_start,
         year_end=time_label_end,
-        year_range=time_label_range)
+        year_range=time_label_range,
+        time_sep_skip_year=time_sep_skip_year)
     # binary flag < 0.05 or not.
     __visualise_pval_heatmap(
         seq_stack_detection_results, 
@@ -1011,7 +1034,8 @@ def main(path_config_toml: Path,
         is_render_binary_ho_rejection=True,
         year_start=time_label_start,
         year_end=time_label_end,
-        year_range=time_label_range)
+        year_range=time_label_range,
+        time_sep_skip_year=time_sep_skip_year)
     
     # visualisation of heatmap of variable count.
     __visualise_variable_count(
@@ -1019,14 +1043,16 @@ def main(path_config_toml: Path,
         path_figure_dir=path_figure_dir,
         year_start=time_label_start,
         year_end=time_label_end,
-        year_range=time_label_range)
+        year_range=time_label_range,
+        time_sep_skip_year=time_sep_skip_year)
     __visualise_variable_count(
         seq_stack_detection_results=seq_stack_detection_results, 
         path_figure_dir=path_figure_dir, 
         is_render_binary_ho_rejection=True,
         year_start=time_label_start,
         year_end=time_label_end,
-        year_range=time_label_range)
+        year_range=time_label_range,
+        time_sep_skip_year=time_sep_skip_year)
     # -------------------------------------------------
     # non-completed codes below
     # detection of common and uncommon variables

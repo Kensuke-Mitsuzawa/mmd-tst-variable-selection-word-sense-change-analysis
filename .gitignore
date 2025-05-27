@@ -15,3 +15,6 @@ wandb/
 .idea/
 mlruns/
 resources
+
+# idea notes
+idea_notebooks/

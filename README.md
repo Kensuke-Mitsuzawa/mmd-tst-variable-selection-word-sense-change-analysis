@@ -9,6 +9,7 @@
 
 ### Visualisation
 
+Before visualisation, do `pip install seaborn -U`. Seaborn 0.12.2 fails to plot heatmaps.
 
 ```
 python ./word_sense_change_analysis/visualisations.py -c <path-to-config.toml>
