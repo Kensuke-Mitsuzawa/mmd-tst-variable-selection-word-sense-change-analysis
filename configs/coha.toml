@@ -58,7 +58,12 @@
 [Analysis]
     path_analysis_output = "/workdir/kmitsuzawa/DATA/mitsuzaw/eurecom/project_word_sense/coha/analysis_output"
 
-    target_keywords = []
+    target_keywords = [
+        "men",
+        "man",
+        "human",
+        "family"
+    ]
     
     TimeEpochLabelStart = 1810
     TimeEpochLabelEnd = 2010
